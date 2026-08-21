@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+// Automatically detect whether app is running on localhost or live deployed HTTPS server
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const RENDER_PROD_API = 'https://ai-air-quality-prediction-platform.onrender.com/api/v1';
+const LOCAL_DEV_API = 'http://localhost:8000/api/v1';
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || (isLocalhost ? LOCAL_DEV_API : RENDER_PROD_API),
   headers: {
     'Content-Type': 'application/json',
   },
