@@ -12,7 +12,7 @@ const ALL_INDIAN_CITIES = [
   "Chandigarh", "Solapur", "Mysuru", "Gurugram", "Bhubaneswar", "Noida", "Amravati", "Katni", "Imphal", "Kollam"
 ];
 
-const getCityWeather = (cityName) => {
+const computeCityWeather = (cityName) => {
   const name = cityName ? cityName.trim() : "Delhi";
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -20,7 +20,8 @@ const getCityWeather = (cityName) => {
   }
   hash = Math.abs(hash);
 
-  const currentHour = new Date().getHours();
+  const now = new Date();
+  const currentHour = now.getHours();
   const isNight = currentHour >= 18 || currentHour < 6;
 
   const baseTemp = isNight ? 21.0 : 28.0;
@@ -41,7 +42,8 @@ const getCityWeather = (cityName) => {
     humidity_percent: humidity,
     wind_speed_kmh: wind_speed,
     uv_index: isNight ? 0 : 6,
-    isNight: isNight
+    isNight: isNight,
+    currentTimeStr: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 };
 
@@ -54,7 +56,15 @@ export default function GoogleWeatherDashboard({ onCityChange, currentSelectedCi
   const searchRef = useRef(null);
 
   const activeCityName = currentSelectedCity || aqiData?.city || 'Delhi';
-  const weather = getCityWeather(activeCityName);
+  const [weather, setWeather] = useState(() => computeCityWeather(activeCityName));
+
+  useEffect(() => {
+    setWeather(computeCityWeather(activeCityName));
+    const timer = setInterval(() => {
+      setWeather(computeCityWeather(activeCityName));
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [activeCityName]);
 
   const aqiVal = Math.round(aqiData?.current_aqi || 198);
   const status = aqiData?.current_status || 'Moderate';
@@ -147,7 +157,7 @@ export default function GoogleWeatherDashboard({ onCityChange, currentSelectedCi
             </div>
             <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
               <span className="text-teal-400 font-semibold flex items-center gap-1">
-                <Zap className="w-3 h-3" /> Live Synced Weather & Air Quality Dashboard
+                <Zap className="w-3 h-3" /> Live Synced Weather ({weather.currentTimeStr})
               </span>
             </p>
           </div>
@@ -204,7 +214,7 @@ export default function GoogleWeatherDashboard({ onCityChange, currentSelectedCi
         <div className="bg-slate-950/70 backdrop-blur-md rounded-2xl p-6 border border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
-              {weather.isNight ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-400" />} Live Weather Report ({weather.isNight ? 'Night' : 'Day'})
+              {weather.isNight ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-400" />} Live Weather Report ({weather.isNight ? 'Nighttime' : 'Daytime'})
             </span>
             <span className="text-[11px] text-teal-300 font-mono font-bold px-2 py-0.5 bg-teal-950/80 rounded border border-teal-800">
               {activeCityName}
