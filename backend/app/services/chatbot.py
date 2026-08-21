@@ -13,6 +13,8 @@ AIR_QUALITY_KEYWORDS = GREETING_KEYWORDS + [
     "exercise", "walk", "children", "asthma", "precaution", "recommend", "advice", "sky", "temperature"
 ]
 
+SUPPORTED_GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-3.6-flash', 'gemini-flash']
+
 def get_live_aqi_tool(city: str, db: Session) -> dict:
     forecast = predict_city_aqi_forecast(db, city, forecast_hours=1)
     return {
@@ -66,7 +68,6 @@ def process_chatbot_query(user_query: str, db: Session) -> dict:
     if gemini_key and len(gemini_key) > 5:
         try:
             genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel('gemini-3.6-flash')
             
             system_prompt = (
                 "You are VayuDrishti AI powered by Google Gemini. "
@@ -76,18 +77,25 @@ def process_chatbot_query(user_query: str, db: Session) -> dict:
                 f"Real-Time Database Context:\n{json.dumps(real_data, indent=2)}\n\n"
                 f"User Question: {user_query}"
             )
-            response = model.generate_content(system_prompt)
-            if response and response.text:
-                ans = response.text.strip()
-                if "data out of context" in ans.lower() or ("context" in ans.lower() and len(ans) < 30):
-                    ans = "Data out of context"
-                return {
-                    "query": user_query,
-                    "answer": ans,
-                    "city": target_city,
-                    "grounded_data": real_data,
-                    "source": "Google Gemini 3.6 Flash AI"
-                }
+
+            # Resilient Multi-Model Fallback Chain
+            for model_name in SUPPORTED_GEMINI_MODELS:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content(system_prompt)
+                    if response and response.text:
+                        ans = response.text.strip()
+                        if "data out of context" in ans.lower() or ("context" in ans.lower() and len(ans) < 30):
+                            ans = "Data out of context"
+                        return {
+                            "query": user_query,
+                            "answer": ans,
+                            "city": target_city,
+                            "grounded_data": real_data,
+                            "source": f"Google Gemini AI ({model_name})"
+                        }
+                except Exception as m_err:
+                    continue
         except Exception as e:
             print(f"Gemini API invocation notice: {e}")
 
